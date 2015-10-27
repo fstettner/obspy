@@ -85,6 +85,9 @@ master:
      - new option `PPSD.plot(..., cumulative=True)` for a cumulative plot of
        the histogram, i.e. a non-exceedence percentage visualization, similar
        to the `percentile` option.
+     - bin width on frequency axis can now be controlled using
+       `PPSD(..., frequency_bin_width_octaves=...)` (in fractions of octaves,
+       default is the old fixed setting of 1/8 octaves as in PQLX)
  - obspy.taup
    * Added support for nd file format for input velocity models. Allows for 
      named discontinuities at arbitrary depths allowing for less Earth like
