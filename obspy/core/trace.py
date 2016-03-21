@@ -31,7 +31,16 @@ from obspy.core.util.decorator import (deprecated_keywords, raise_if_masked,
 from obspy.core.util.misc import flat_not_masked_contiguous, get_window_times
 
 
-class Stats(AttribDict):
+###########################################################################################
+
+class BaseStats(AttribDict):
+
+    pass
+
+###########################################################################################
+
+class TimeseriesStats(BaseStats):
+
     """
     A container for additional header information of a ObsPy Trace object.
 
@@ -49,13 +58,13 @@ class Stats(AttribDict):
 
     .. rubric:: Basic Usage
 
-    >>> stats = Stats()
-    >>> stats.network = 'BW'
-    >>> print(stats['network'])
-    BW
-    >>> stats['station'] = 'MANZ'
+    >>> stats = TimeseriesStats()
+    >>> stats.sampling_rate = 2.0
+    >>> print(stats['sampling_rate'])
+    2.0
+    >>> stats['npts'] = 60
     >>> print(stats.station)
-    MANZ
+    60
 
     .. rubric:: _`Default Attributes`
 
@@ -68,6 +77,10 @@ class Stats(AttribDict):
     ``npts`` : int, optional
         Number of sample points (default value is 0, which implies that no data
         is present).
+
+    ##################################################################
+    Further Default Attributes of the class Stats(TimeseriesStats):
+
     ``network`` : string, optional
         Network code (default is an empty string).
     ``location`` : string, optional
@@ -76,6 +89,10 @@ class Stats(AttribDict):
         Station code (default is an empty string).
     ``channel`` : string, optional
         Channel code (default is an empty string).
+
+    ##################################################################
+
+
     ``starttime`` : :class:`~obspy.core.utcdatetime.UTCDateTime`, optional
         Date and time of the first data sample given in UTC (default value is
         "1970-01-01T00:00:00.0Z").
@@ -89,7 +106,7 @@ class Stats(AttribDict):
         other. If one of the attributes is modified the other will be
         recalculated.
 
-        >>> stats = Stats()
+        >>> stats = TimeseriesStats()
         >>> stats.sampling_rate
         1.0
         >>> stats.delta = 0.005
@@ -99,7 +116,7 @@ class Stats(AttribDict):
     (2) The attributes ``starttime``, ``npts``, ``sampling_rate`` and ``delta``
         are monitored and used to automatically calculate the ``endtime``.
 
-        >>> stats = Stats()
+        >>> stats = TimeseriesStats()
         >>> stats.npts = 60
         >>> stats.delta = 1.0
         >>> stats.starttime = UTCDateTime(2009, 1, 1, 12, 0, 0)
@@ -111,7 +128,7 @@ class Stats(AttribDict):
 
     (3) The attribute ``endtime`` is read only and can not be modified.
 
-        >>> stats = Stats()
+        >>> stats = TimeseriesStats()
         >>> stats.endtime = UTCDateTime(2009, 1, 1, 12, 0, 0)
         Traceback (most recent call last):
         ...
@@ -139,17 +156,13 @@ class Stats(AttribDict):
         'starttime': UTCDateTime(0),
         'endtime': UTCDateTime(0),
         'npts': 0,
-        'calib': 1.0,
-        'network': '',
-        'station': '',
-        'location': '',
-        'channel': '',
+        'calib': 1.0
     }
 
     def __init__(self, header={}):
         """
         """
-        super(Stats, self).__init__(header)
+        super(BaseStats, self).__init__(header)
 
     def __setitem__(self, key, value):
         """
@@ -167,7 +180,7 @@ class Stats(AttribDict):
             elif key == 'npts':
                 value = int(value)
             # set current key
-            super(Stats, self).__setitem__(key, value)
+            super(BaseStats, self).__setitem__(key, value)
             # set derived value: delta
             try:
                 delta = 1.0 / float(self.sampling_rate)
@@ -187,9 +200,9 @@ class Stats(AttribDict):
             warnings.warn(msg, UserWarning)
         # all other keys
         if isinstance(value, dict):
-            super(Stats, self).__setitem__(key, AttribDict(value))
+            super(TimeseriesStats, self).__setitem__(key, AttribDict(value))
         else:
-            super(Stats, self).__setitem__(key, value)
+            super(TimeseriesStats, self).__setitem__(key, value)
 
     __setattr__ = __setitem__
 
@@ -197,8 +210,7 @@ class Stats(AttribDict):
         """
         Return better readable string representation of Stats object.
         """
-        priorized_keys = ['network', 'station', 'location', 'channel',
-                          'starttime', 'endtime', 'sampling_rate', 'delta',
+        priorized_keys = ['starttime', 'endtime', 'sampling_rate', 'delta',
                           'npts', 'calib']
         return self._pretty_str(priorized_keys)
 
@@ -240,6 +252,76 @@ def _add_processing_info(func):
     new_func.__doc__ = func.__doc__
     new_func.__dict__.update(func.__dict__)
     return new_func
+
+###################################################################################################
+
+class Stats(TimeseriesStats):
+    
+    readonly = ['endtime']
+    defaults = {
+        'sampling_rate': 1.0,
+        'delta': 1.0,
+        'starttime': UTCDateTime(0),
+        'endtime': UTCDateTime(0),
+        'npts': 0,
+        'calib': 1.0,
+        'network': '',
+        'station': '',
+        'location': '',
+        'channel': ''
+    }
+
+    
+    def __str__(self):
+        """
+        Return better readable string representation of Stats object.
+        """
+        priorized_keys = ['network', 'station', 'location', 'channel',
+                          'starttime', 'endtime', 'sampling_rate', 'delta',
+                          'npts', 'calib']
+        return self._pretty_str(priorized_keys)
+
+
+def _add_processing_info(func):
+    """
+    This is a decorator that attaches information about a processing call as a
+    string to the Trace.stats.processing list.
+    """
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        callargs = inspect.getcallargs(func, *args, **kwargs)
+        callargs.pop("self")
+        kwargs_ = callargs.pop("kwargs", {})
+        from obspy import __version__
+        info = "ObsPy {version}: {function}(%s)".format(
+            version=__version__,
+            function=func.__name__)
+        arguments = []
+        arguments += \
+            ["%s=%s" % (k, v) if not isinstance(v, native_str) else
+             "%s='%s'" % (k, v) for k, v in callargs.items()]
+        arguments += \
+            ["%s=%s" % (k, v) if not isinstance(v, native_str) else
+             "%s='%s'" % (k, v) for k, v in kwargs_.items()]
+        arguments.sort()
+        info = info % "::".join(arguments)
+        self = args[0]
+        result = func(*args, **kwargs)
+        # Attach after executing the function to avoid having it attached
+        # while the operation failed.
+        self._addProcessingInfo(info)
+        return result
+
+    new_func.__name__ = func.__name__
+    new_func.__doc__ = func.__doc__
+    new_func.__dict__.update(func.__dict__)
+    return new_func
+
+##################################################################################################################################
+
+
+
+
 
 
 class BaseTrace(object):
@@ -492,7 +574,7 @@ class TimeseriesTrace(BaseTrace):
         if key == 'data':
             _data_sanity_checks(value)
             self.stats.npts = len(value)
-        return super(Trace, self).__setattr__(key, value)
+        return super(BaseTrace, self).__setattr__(key, value)
 
     def __getitem__(self, index):
         """

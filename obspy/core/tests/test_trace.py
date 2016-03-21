@@ -16,6 +16,8 @@ from obspy.core import Stats
 from obspy.core.compatibility import mock
 from obspy.core.util.testing import ImageComparison
 from obspy.io.xseed import Parser
+import pdb
+
 
 
 class TraceTestCase(unittest.TestCase):
@@ -1292,13 +1294,15 @@ class TraceTestCase(unittest.TestCase):
                                    org_trace.stats.sampling_rate)
             # check end times
             self.assertEqual(traces[i].stats.endtime, sum_trace.stats.endtime)
-
+    
     def test_verify(self):
         """
         Tests verify method.
         """
         # empty Trace
         tr = Trace()
+        
+
         tr.verify()
         # Trace with a single sample (issue #357)
         tr = Trace(data=np.array([1]))
@@ -1435,10 +1439,15 @@ class TraceTestCase(unittest.TestCase):
         """
         # set up
         tr1 = Trace(data=np.arange(1000))
+
+        print ("station information:", tr1.stats)
+
         tr1.stats.sampling_rate = 200
         start = UTCDateTime(2000, 1, 1, 0, 0, 0, 0)
         tr1.stats.starttime = start
+
         tr2 = Trace(data=np.arange(0, 1000)[::-1])
+
         tr2.stats.sampling_rate = 200
         tr2.stats.starttime = start + 10
         # add will create new trace with masked array
@@ -1460,7 +1469,6 @@ class TraceTestCase(unittest.TestCase):
         station, location and channel information.
         """
         tr = read()[0]
-
         # Wrap in try/except as it of course will fail because the mocked
         # function returns None.
         try:
@@ -1616,15 +1624,27 @@ class TraceTestCase(unittest.TestCase):
         StationXML against pure evalresp providing an external RESP file.
         """
         tr1 = read()[0]
+ 
+
         tr2 = tr1.copy()
         # deconvolve from dataless with simulate() via Parser from
         # dataless/RESP
         parser = Parser("/path/to/dataless.seed.BW_RJOB")
+        
+        pdb.set_trace()
         tr1.simulate(seedresp={"filename": parser, "units": "VEL"},
                      water_level=60, pre_filt=(0.1, 0.5, 30, 50), sacsim=True,
                      pitsasim=False)
         # deconvolve from StationXML with remove_response()
+        pdb.set_trace()
         tr2.remove_response(pre_filt=(0.1, 0.5, 30, 50))
+        
+        print ("---------------------")
+        print (tr1.data)
+        print ("????????????????")
+        print (tr2.data)
+        print ("-------------------")
+        pdb.set_trace()
         np.testing.assert_array_almost_equal(tr1.data, tr2.data)
 
     def test_remove_polynomial_response(self):
