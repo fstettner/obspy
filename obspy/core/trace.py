@@ -39,7 +39,7 @@ class BaseStats(AttribDict):
 
 ###########################################################################################
 
-class TimeseriesStats(BaseStats):
+class TimeSeriesStats(BaseStats):
 
     """
     A container for additional header information of a ObsPy Trace object.
@@ -58,7 +58,7 @@ class TimeseriesStats(BaseStats):
 
     .. rubric:: Basic Usage
 
-    >>> stats = TimeseriesStats()
+    >>> stats = TimeSeriesStats()
     >>> stats.sampling_rate = 2.0
     >>> print(stats['sampling_rate'])
     2.0
@@ -79,7 +79,7 @@ class TimeseriesStats(BaseStats):
         is present).
 
     ##################################################################
-    Further Default Attributes of the class Stats(TimeseriesStats):
+    Further Default Attributes of the class Stats(TimeSeriesStats):
 
     ``network`` : string, optional
         Network code (default is an empty string).
@@ -106,7 +106,7 @@ class TimeseriesStats(BaseStats):
         other. If one of the attributes is modified the other will be
         recalculated.
 
-        >>> stats = TimeseriesStats()
+        >>> stats = TimeSeriesStats()
         >>> stats.sampling_rate
         1.0
         >>> stats.delta = 0.005
@@ -116,7 +116,7 @@ class TimeseriesStats(BaseStats):
     (2) The attributes ``starttime``, ``npts``, ``sampling_rate`` and ``delta``
         are monitored and used to automatically calculate the ``endtime``.
 
-        >>> stats = TimeseriesStats()
+        >>> stats = TimeSeriesStats()
         >>> stats.npts = 60
         >>> stats.delta = 1.0
         >>> stats.starttime = UTCDateTime(2009, 1, 1, 12, 0, 0)
@@ -128,7 +128,7 @@ class TimeseriesStats(BaseStats):
 
     (3) The attribute ``endtime`` is read only and can not be modified.
 
-        >>> stats = TimeseriesStats()
+        >>> stats = TimeSeriesStats()
         >>> stats.endtime = UTCDateTime(2009, 1, 1, 12, 0, 0)
         Traceback (most recent call last):
         ...
@@ -200,9 +200,9 @@ class TimeseriesStats(BaseStats):
             warnings.warn(msg, UserWarning)
         # all other keys
         if isinstance(value, dict):
-            super(TimeseriesStats, self).__setitem__(key, AttribDict(value))
+            super(TimeSeriesStats, self).__setitem__(key, AttribDict(value))
         else:
-            super(TimeseriesStats, self).__setitem__(key, value)
+            super(TimeSeriesStats, self).__setitem__(key, value)
 
     __setattr__ = __setitem__
 
@@ -218,44 +218,9 @@ class TimeseriesStats(BaseStats):
         p.text(str(self))
 
 
-def _add_processing_info(func):
-    """
-    This is a decorator that attaches information about a processing call as a
-    string to the Trace.stats.processing list.
-    """
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        callargs = inspect.getcallargs(func, *args, **kwargs)
-        callargs.pop("self")
-        kwargs_ = callargs.pop("kwargs", {})
-        from obspy import __version__
-        info = "ObsPy {version}: {function}(%s)".format(
-            version=__version__,
-            function=func.__name__)
-        arguments = []
-        arguments += \
-            ["%s=%s" % (k, v) if not isinstance(v, native_str) else
-             "%s='%s'" % (k, v) for k, v in callargs.items()]
-        arguments += \
-            ["%s=%s" % (k, v) if not isinstance(v, native_str) else
-             "%s='%s'" % (k, v) for k, v in kwargs_.items()]
-        arguments.sort()
-        info = info % "::".join(arguments)
-        self = args[0]
-        result = func(*args, **kwargs)
-        # Attach after executing the function to avoid having it attached
-        # while the operation failed.
-        self._addProcessingInfo(info)
-        return result
-
-    new_func.__name__ = func.__name__
-    new_func.__doc__ = func.__doc__
-    new_func.__dict__.update(func.__dict__)
-    return new_func
-
 ###################################################################################################
 
-class Stats(TimeseriesStats):
+class Stats(TimeSeriesStats):
     
     readonly = ['endtime']
     defaults = {
@@ -320,11 +285,10 @@ def _add_processing_info(func):
 ##################################################################################################################################
 
 
-
-
-
-
 class BaseTrace(object):
+    def __init__(self, data=np.array([])):
+        super(BaseTrace, self).__setattr__("data", data)
+        self.stats = BaseStats()
 
     def max(self):
         """
@@ -418,21 +382,18 @@ class BaseTrace(object):
         proc.append(info)
 
 
-class TimeseriesTrace(BaseTrace):
+class TimeSeriesTrace(BaseTrace):
     def __init__(self, data=np.array([]), header=None):
-        # make sure Trace gets initialized with suitable ndarray as self.data
-        # otherwise we could end up with e.g. a list object in self.data
+        super(TimeSeriesTrace, self).__init__(data=data)
         _data_sanity_checks(data)
-        # set some defaults if not set yet
-        if header is None:
+        # make sure Trace gets initialized with suitable ndarray as self.data
+        # otherwise we could end up with e.g. a list object in self.data _data_sanity_checks(data) # set some defaults if not set yet if header is None:
             # Default values: For detail see
             # http://www.obspy.org/wiki/\
             # KnownIssues#DefaultParameterValuesinPython
-            header = {}
+        header = header or {}
         header.setdefault('npts', len(data))
-        self.stats = Stats(header)
-        # set data without changing npts in stats object (for headonly option)
-        super(Trace, self).__setattr__('data', data)
+        self.stats = TimeSeriesStats(header)
 
     @property
     def meta(self):
@@ -476,7 +437,8 @@ class TimeseriesTrace(BaseTrace):
 
     def __le__(self, other):
         """
-        Too ambiguous, throw an Error.
+:meSeriesTrace' object has no attribute 'starttime'
+       Too ambiguous, throw an Error.
         """
         raise NotImplementedError("Too ambiguous, therefore not implemented.")
 
@@ -574,7 +536,7 @@ class TimeseriesTrace(BaseTrace):
         if key == 'data':
             _data_sanity_checks(value)
             self.stats.npts = len(value)
-        return super(BaseTrace, self).__setattr__(key, value)
+        return super(TimeSeriesTrace, self).__setattr__(key, value)
 
     def __getitem__(self, index):
         """
@@ -821,7 +783,7 @@ class TimeseriesTrace(BaseTrace):
             1 + 2  : AAAABCDEFFFF
         """
         if sanity_checks:
-            if not isinstance(trace, Trace):
+            if not isinstance(trace,Trace):
                 raise TypeError
             #  check id
             if self.getId() != trace.getId():
@@ -1380,7 +1342,7 @@ class TimeseriesTrace(BaseTrace):
         elif self.stats.npts not in [0, 1]:
             msg = "Data size should be 0, but is %d"
             raise Exception(msg % self.stats.npts)
-        if not isinstance(self.stats, Stats):
+        if not isinstance(self.stats, BaseStats):
             msg = "Attribute stats must be an instance of obspy.core.Stats"
             raise Exception(msg)
         if isinstance(self.data, np.ndarray) and \
@@ -2178,7 +2140,7 @@ class TimeseriesTrace(BaseTrace):
         return timeArray
 
 
-class Trace(TimeseriesTrace):
+class Trace(TimeSeriesTrace):
     """
     An object containing data of a continuous series, such as a seismic trace.
 
@@ -2206,6 +2168,9 @@ class Trace(TimeseriesTrace):
         Returns basic information about the trace object.
         See also: :meth:`Trace.__str__`.
     """
+    def __init__(self, data=np.array([]), header=None):
+        super(Trace, self).__init__(data=data, header=header)
+        self.stats = Stats(self.stats)
 
     @_add_processing_info
     def simulate(self, paz_remove=None, paz_simulate=None,
@@ -2335,10 +2300,22 @@ seismometer_correction_simulation.html#using-a-resp-file>`_.
                 seedresp[item] = self.stats[item]
 
         from obspy.signal.invsim import simulate_seismometer
+
+        print("&&&&&&&&&&&&&&&&&&&&&")
+        print("self.data is", self.data)
+        print("self.stats.sampling_rate is",self.stats.sampling_rate)
+        print("self.paz_remove is",paz_remove)
+        print("paz_simulate is", paz_simulate)
+        print("remove_sensitivity is", remove_sensitivity)
+        print("simulate_sensitivity is", simulate_sensitivity)
+        print("kwargs is", kwargs)
+        print("%%%%%%%%%%%%%%%%%%%%")
+
         self.data = simulate_seismometer(
             self.data, self.stats.sampling_rate, paz_remove=paz_remove,
             paz_simulate=paz_simulate, remove_sensitivity=remove_sensitivity,
             simulate_sensitivity=simulate_sensitivity, **kwargs)
+        print(self.data)
 
         return self
 

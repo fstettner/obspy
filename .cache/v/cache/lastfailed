@@ -1,4 +1,1 @@
-{
-  "obspy/core/tests/test_code_formatting.py::CodeFormattingTestCase::test_flake8": true,
-  "obspy/core/tests/test_util_misc.py::UtilMiscTestCase::test_CatchOutput": true
-}
+{}
