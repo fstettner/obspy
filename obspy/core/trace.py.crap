@@ -1,0 +1,25 @@
+        frq = k/T
+        frq = frq[range(n/2)]
+        Y = self/n
+        Y = Y[range(n/2)]
+
+        plt.plot(frq, abs(Y), 'r')
+
+        plt.xlabel('Freq (Hz)')
+        plt.ylabel('|Y(freq)|')
+        plt.show()
+    
+    def psd(self):
+        psd = signal.periodogram(self.data)
+        plt.plot(psd)
+        plt.xlabel('frequency [Hz]')
+        plt.ylabel('PSD [V**2/Hz]')
+        plt.show()
+
+
+###############################################################################################
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod(exclude_empty=True)
